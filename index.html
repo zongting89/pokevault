@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zack's Pokémon Collection</title>
+<style>
+  :root {
+    --bg: #0f0f1a; --surface: #1a1a2e; --surface2: #16213e;
+    --gold: #c9a84c; --gold-light: #e8c96a; --gold-dim: #7a6030;
+    --text: #e8e0d0; --text-dim: #8a8070;
+    --red: #e05555; --green: #4caf50; --blue: #4fa3d6;
+    --border: rgba(201,168,76,0.25); --radius: 12px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.5);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; padding-bottom: 120px; }
+
+  header {
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0f1a2e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px; position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .logo { font-size: 1.4rem; font-weight: 800; background: linear-gradient(135deg, var(--gold), var(--gold-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .logo-sub { font-size: 0.76rem; color: var(--text-dim); margin-top: 2px; }
+  .live-wrap { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .live-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
+  .live-label { font-size: 0.75rem; color: var(--green); font-weight: 700; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 18px 14px; }
+
+  .loading-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+  .spinner-lg { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to{transform:rotate(360deg);} }
+  .error-state { text-align: center; padding: 40px 20px; color: var(--text-dim); }
+  .error-state .icon { font-size: 2rem; margin-bottom: 12px; }
+
+  .filter-bar { display: flex; gap: 7px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
+  .filter-btn { padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
+  .filter-btn.active { background: rgba(201,168,76,0.15); border-color: var(--gold); color: var(--gold); }
+
+  #card-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+  .card-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: all 0.2s; position: relative; }
+  .card-item:hover { border-color: var(--gold); box-shadow: 0 0 20px rgba(201,168,76,0.15); transform: translateY(-2px); }
+  .card-item.selected { border-color: var(--gold); box-shadow: 0 0 24px rgba(201,168,76,0.3); }
+  .card-item.sold-item { opacity: 0.45; pointer-events: none; }
+  .card-item.sold-item::after { content: 'SOLD'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 2.2rem; font-weight: 900; color: var(--red); opacity: 0.85; letter-spacing: 4px; border: 3px solid var(--red); padding: 4px 14px; border-radius: 4px; pointer-events: none; }
+  .selected-check { position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; background: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #1a1408; font-weight: 900; font-size: 1rem; z-index: 5; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+
+  .card-images { position: relative; aspect-ratio: 4/3; overflow: hidden; background: #0a0a15; }
+  .card-images img { width: 100%; height: 100%; object-fit: contain; display: none; }
+  .card-images img.active { display: block; }
+  .carousel-nav { position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; }
+  .carousel-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.3); cursor: pointer; transition: all 0.15s; }
+  .carousel-dot.active { background: var(--gold); width: 14px; border-radius: 3px; }
+  .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); border: none; color: white; width: 26px; height: 26px; border-radius: 50%; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; z-index: 2; }
+  .carousel-btn.prev { left: 7px; } .carousel-btn.next { right: 7px; }
+
+  .bundle-badge { position: absolute; top: 8px; left: 8px; background: linear-gradient(135deg,#7b3fa0,#5a2d80); color: white; font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; z-index: 3; }
+  .first-ed-badge { position: absolute; top: 8px; left: 8px; background: linear-gradient(135deg,var(--gold),var(--gold-light)); color: #1a1408; font-size: 0.62rem; font-weight: 900; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; z-index: 3; }
+
+  .card-body { padding: 12px; }
+  .card-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 2px; }
+  .card-number { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; }
+  .card-set { font-size: 0.75rem; color: var(--gold); font-weight: 600; margin-bottom: 6px; }
+  .card-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 7px; }
+  .tag { font-size: 0.63rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+  .tag-rarity { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid var(--gold-dim); }
+  .tag-holo { background: rgba(79,163,214,0.12); color: var(--blue); border: 1px solid rgba(79,163,214,0.3); }
+  .card-remarks { font-size: 0.72rem; color: var(--text-dim); line-height: 1.45; margin-bottom: 10px; }
+  .price-display { font-size: 1.2rem; font-weight: 800; color: var(--gold-light); }
+  .price-unset { font-size: 0.82rem; color: var(--text-dim); font-style: italic; }
+
+  #cart-panel { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 2px solid var(--gold); z-index: 150; transition: transform 0.3s ease; }
+  #cart-panel.collapsed { transform: translateY(calc(100% - 58px)); }
+  .cart-toggle { padding: 14px 18px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+  .cart-count { background: var(--gold); color: #1a1408; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; font-weight: 800; }
+  .cart-title { font-weight: 700; flex: 1; }
+  .cart-total { font-weight: 800; color: var(--gold-light); font-size: 1.1rem; }
+  .cart-body { padding: 0 18px 14px; max-height: 50vh; overflow-y: auto; }
+  .cart-empty { color: var(--text-dim); font-size: 0.82rem; padding: 14px 0; text-align: center; }
+  .cart-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .cart-row img { width: 46px; height: 46px; object-fit: cover; border-radius: 6px; }
+  .cart-row-info { flex: 1; }
+  .cart-row-name { font-size: 0.86rem; font-weight: 600; }
+  .cart-row-set { font-size: 0.72rem; color: var(--text-dim); }
+  .cart-row-price { font-weight: 700; color: var(--gold-light); font-size: 0.92rem; }
+  .cart-row-remove { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.2rem; padding: 4px; }
+  .cart-row-remove:hover { color: var(--red); }
+  .cart-summary { padding: 12px 0 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .grand-total-label { font-size: 0.8rem; color: var(--text-dim); }
+  .grand-total { font-size: 1.5rem; font-weight: 800; color: var(--gold-light); }
+  .btn { padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.84rem; font-weight: 600; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold-light)); color: #1a1408; }
+  .btn-gold:hover { filter: brightness(1.1); }
+
+  #toast { position: fixed; bottom: 75px; right: 16px; background: var(--surface); border: 1px solid var(--gold); border-radius: 8px; padding: 10px 15px; font-size: 0.8rem; font-weight: 600; color: var(--gold-light); box-shadow: var(--shadow); z-index: 300; transform: translateY(14px); opacity: 0; transition: all 0.25s; pointer-events: none; max-width: 260px; }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  @media (max-width:600px) {
+    #card-list { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .card-body { padding: 9px; }
+    .card-name { font-size: 0.82rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">✦ PokéVault</div>
+    <div class="logo-sub">Zack's Vintage Collection · Singapore</div>
+  </div>
+  <div class="live-wrap">
+    <div class="live-dot"></div>
+    <div class="live-label">LIVE</div>
+  </div>
+</header>
+
+<main>
+  <div id="loading-state" class="loading-state">
+    <div class="spinner-lg"></div>
+    <div>Loading latest cards...</div>
+  </div>
+  <div id="error-state" class="error-state" style="display:none">
+    <div class="icon">⚠️</div>
+    <div id="error-msg">Could not load cards.</div>
+  </div>
+  <div id="content" style="display:none">
+    <div class="filter-bar">
+      <span style="font-size:0.73rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;">Filter:</span>
+      <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+      <button class="filter-btn" onclick="setFilter('Base Set',this)">Base Set</button>
+      <button class="filter-btn" onclick="setFilter('Neo',this)">Neo</button>
+      <button class="filter-btn" onclick="setFilter('Team Rocket',this)">Rocket</button>
+      <button class="filter-btn" onclick="setFilter('EX',this)">EX Era</button>
+      <button class="filter-btn" onclick="setFilter('bundle',this)">Bundles</button>
+    </div>
+    <div id="card-list"></div>
+  </div>
+</main>
+
+<div id="cart-panel" class="collapsed">
+  <div class="cart-toggle" onclick="toggleCart()">
+    <div class="cart-count" id="cart-count">0</div>
+    <div class="cart-title">🛒 My Cart</div>
+    <div class="cart-total" id="cart-header-total">SGD 0.00</div>
+    <span id="cart-chevron">▲</span>
+  </div>
+  <div class="cart-body" id="cart-body">
+    <div class="cart-empty">Tap any card to add it to your cart.</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const GITHUB_USER = 'zongting89';
+const GITHUB_REPO = 'pokevault';
+const DATA_FILE = 'data.json';
+
+let cards = [];
+let selectedIds = new Set();
+let cartOpen = false;
+let currentFilter = 'all';
+
+async function init() {
+  try {
+    // Use raw GitHub content URL — no auth needed for public repos
+    const url = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${DATA_FILE}`;
+    const res = await fetch(url + '?t=' + Date.now()); // cache bust
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    cards = data.cards || [];
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    render();
+  } catch(e) {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('error-state').style.display = 'block';
+    document.getElementById('error-msg').textContent = 'Could not load cards: ' + e.message + '. Ask the seller to Save & Sync first.';
+  }
+}
+
+function render() {
+  const list = document.getElementById('card-list');
+  list.innerHTML = '';
+  cards.filter(c => {
+    if (currentFilter === 'all') return true;
+    if (currentFilter === 'bundle') return c.type === 'bundle';
+    return c.set && c.set.toLowerCase().includes(currentFilter.toLowerCase());
+  }).forEach(c => list.appendChild(makeCard(c)));
+}
+
+function makeCard(card) {
+  const div = document.createElement('div');
+  div.className = 'card-item' + (card.sold ? ' sold-item' : '') + (selectedIds.has(card.id) ? ' selected' : '');
+  if (!card.sold) div.onclick = () => toggleSelect(card.id);
+
+  const is1st = card.remarks && card.remarks.toLowerCase().includes('1st edition');
+  const isBundle = card.type === 'bundle';
+  const imgs = card.images || [];
+
+  let carousel = '';
+  if (imgs.length > 0) {
+    const imgTags = imgs.map((s,i) => `<img src="${s}" class="${i===0?'active':''}" loading="lazy" alt="${card.name}">`).join('');
+    const dots = imgs.length > 1 ? `<div class="carousel-nav">${imgs.map((_,i)=>`<div class="carousel-dot ${i===0?'active':''}" onclick="event.stopPropagation();cGo('${card.id}',${i})"></div>`).join('')}</div>` : '';
+    const pv = imgs.length > 1 ? `<button class="carousel-btn prev" onclick="event.stopPropagation();cStep('${card.id}',-1)">‹</button>` : '';
+    const nx = imgs.length > 1 ? `<button class="carousel-btn next" onclick="event.stopPropagation();cStep('${card.id}',1)">›</button>` : '';
+    carousel = `<div class="card-images" id="ci-${card.id}">${pv}${imgTags}${nx}${dots}</div>`;
+  }
+
+  const badge = isBundle ? '<div class="bundle-badge">📦 Bundle</div>' : (is1st ? '<div class="first-ed-badge">1st Ed</div>' : '');
+  const check = selectedIds.has(card.id) ? '<div class="selected-check">✓</div>' : '';
+  const priceHtml = card.price ? `<div class="price-display">SGD ${parseFloat(card.price).toFixed(2)}</div>` : `<div class="price-unset">Price on request</div>`;
+
+  div.innerHTML = `${carousel}${badge}${check}
+    <div class="card-body">
+      <div class="card-name">${card.name}</div>
+      <div class="card-number">${card.number||''}</div>
+      <div class="card-set">${card.set||''}</div>
+      <div class="card-tags">
+        ${card.rarity?`<span class="tag tag-rarity">${card.rarity}</span>`:''}
+        ${card.holo&&card.holo!=='None'?`<span class="tag tag-holo">✦ ${card.holo}</span>`:''}
+      </div>
+      <div class="card-remarks">${card.remarks||''}</div>
+      <div>${priceHtml}</div>
+    </div>`;
+  return div;
+}
+
+function cGo(id,idx) {
+  const el=document.getElementById('ci-'+id); if(!el) return;
+  el.querySelectorAll('img').forEach((img,i)=>img.classList.toggle('active',i===idx));
+  el.querySelectorAll('.carousel-dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
+}
+function cStep(id,dir) {
+  const el=document.getElementById('ci-'+id); if(!el) return;
+  const imgs=el.querySelectorAll('img'); let cur=0;
+  imgs.forEach((img,i)=>{if(img.classList.contains('active'))cur=i;});
+  cGo(id,(cur+dir+imgs.length)%imgs.length);
+}
+
+function toggleSelect(id) {
+  const card=cards.find(c=>c.id===id);
+  if(!card||card.sold) return;
+  if(!card.price){showToast('No price listed yet');return;}
+  selectedIds.has(id)?selectedIds.delete(id):selectedIds.add(id);
+  render(); renderCart();
+}
+
+function renderCart() {
+  const count=selectedIds.size;
+  document.getElementById('cart-count').textContent=count;
+  const body=document.getElementById('cart-body');
+  if(count===0){body.innerHTML='<div class="cart-empty">Tap any card to add it to your cart.</div>';document.getElementById('cart-header-total').textContent='SGD 0.00';return;}
+  let total=0, html='';
+  selectedIds.forEach(id=>{
+    const card=cards.find(c=>c.id===id); if(!card) return;
+    const price=parseFloat(card.price)||0; total+=price;
+    const imgSrc=card.images&&card.images[0]?card.images[0]:'';
+    html+=`<div class="cart-row">
+      ${imgSrc?`<img src="${imgSrc}" alt="${card.name}">`:''}
+      <div class="cart-row-info"><div class="cart-row-name">${card.name}</div><div class="cart-row-set">${card.set} · ${card.rarity}</div></div>
+      <div class="cart-row-price">SGD ${price.toFixed(2)}</div>
+      <button class="cart-row-remove" onclick="toggleSelect('${id}')">×</button>
+    </div>`;
+  });
+  html+=`<div class="cart-summary">
+    <div><div class="grand-total-label">Grand Total (${count} item${count!==1?'s':''})</div><div class="grand-total">SGD ${total.toFixed(2)}</div></div>
+    <button class="btn btn-gold" onclick="copyCart()">📋 Copy Summary</button>
+  </div>`;
+  body.innerHTML=html;
+  document.getElementById('cart-header-total').textContent='SGD '+total.toFixed(2);
+}
+
+function copyCart() {
+  let text='🃏 Pokémon Card Order — Zack's PokéVault\n══════════════════════════════\n';
+  let total=0;
+  selectedIds.forEach(id=>{
+    const card=cards.find(c=>c.id===id); if(!card) return;
+    const price=parseFloat(card.price)||0; total+=price;
+    text+=`• ${card.name} (${card.set} ${card.number}) — SGD ${price.toFixed(2)}\n`;
+  });
+  text+='══════════════════════════════\nTOTAL: SGD '+total.toFixed(2);
+  navigator.clipboard.writeText(text).then(()=>showToast('📋 Summary copied!'));
+}
+
+function toggleCart() {
+  cartOpen=!cartOpen;
+  document.getElementById('cart-panel').classList.toggle('collapsed',!cartOpen);
+  document.getElementById('cart-chevron').textContent=cartOpen?'▼':'▲';
+}
+
+function setFilter(f,btn) {
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); render();
+}
+
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+init();
+</script>
+</body>
+</html>
